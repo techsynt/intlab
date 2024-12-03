@@ -19,9 +19,11 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     private ?int $id = null;
 
     #[ORM\Column(name: 'email', length: 180, unique: true)]
+    #[Assert\Email(
+        message: 'Email {{ value }} невалидный.',
+    )]
     #[Assert\NotBlank(message: 'Email не может быть пустым')]
-    #[Assert\Email]
-    private ?string $email = null;
+    private string $email;
 
     #[Assert\Type('string')]
     #[Assert\Length(
@@ -88,9 +90,12 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return array_unique($roles);
     }
 
+
+
     /**
      * @param list<string> $roles
      */
+    #[ORM\PrePersist]
     public function setRoles(array $roles): static
     {
         $this->roles = $roles;
@@ -120,5 +125,21 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     {
         // If you store any temporary, sensitive data on the user, clear it here
         // $this->plainPassword = null;
+    }
+
+    /**
+     * @return string|null
+     */
+    public function getName(): ?string
+    {
+        return $this->name;
+    }
+
+    /**
+     * @param string|null $name
+     */
+    public function setName(?string $name): void
+    {
+        $this->name = $name;
     }
 }

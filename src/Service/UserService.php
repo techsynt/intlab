@@ -10,6 +10,8 @@ use Symfony\Component\Serializer\Normalizer\AbstractNormalizer;
 use Symfony\Component\Serializer\SerializerInterface;
 use Symfony\Component\Validator\Exception\ValidatorException;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
+use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
+use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 
 class UserService
 {
@@ -17,17 +19,32 @@ class UserService
         private readonly EntityManagerInterface $em,
         private readonly UserRepository $userRepository,
         private readonly SerializerInterface $serializer,
-        private readonly ValidatorInterface $validator
+        private readonly ValidatorInterface $validator,
+        private readonly UserPasswordHasherInterface $passwordHasher
     ) {}
 
     public function create(Request $request): void
     {
         $user = $this->deserialize($request);
 
+        $plaintextPassword = $user->getPassword();
+        $hashedPassword = $this->passwordHasher->hashPassword(
+            $user,
+            $plaintextPassword
+        );
+        $user->setPassword($hashedPassword);
+
         $validationResult = $this->validate($user);
         if ($validationResult) {
             throw new ValidatorException(json_encode($validationResult));
         }
+
+        // Проверка на уникальность email
+        $existingUser = $this->userRepository->findOneBy(['email' => $user->getEmail()]);
+        if ($existingUser) {
+            throw new BadRequestHttpException(json_encode('Такой Email существует'));
+        }
+
         $this->em->persist($user);
         $this->em->flush();
     }
@@ -51,6 +68,7 @@ class UserService
         }
         $user->setEmail($userData['email']);
         $user->setPassword($userData['password']);
+        $user->setName($userData['name']);
 
         $validationResult = $this->validate($user);
         if ($validationResult) {

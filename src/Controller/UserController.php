@@ -7,6 +7,7 @@ use Doctrine\ORM\EntityNotFoundException;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Validator\Exception\ValidatorException;
 
@@ -20,6 +21,13 @@ class UserController extends AbstractController
     {
         try {
             $this->userService->create($request);
+        } catch (BadRequestHttpException $e) {
+            return $this->buildResponse(
+                'failed',
+                json_decode($e->getMessage(), true),
+                null,
+                409
+            );
         } catch (ValidatorException $e) {
             return $this->buildResponse(
                 'failed',
