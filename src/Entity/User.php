@@ -6,6 +6,7 @@ use App\Repository\UserRepository;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
+use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: UserRepository::class)]
 #[ORM\Table(name: '`user`')]
@@ -17,8 +18,22 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column]
     private ?int $id = null;
 
-    #[ORM\Column(length: 180)]
+    #[ORM\Column(name: 'email', length: 180, unique: true)]
+    #[Assert\NotBlank(message: 'Email не может быть пустым')]
+    #[Assert\Email]
     private ?string $email = null;
+
+    #[Assert\Type('string')]
+    #[Assert\Length(
+        min: 2,
+        max: 255,
+    )]
+    #[Assert\Regex(
+        pattern: '/^[A-Za-zА-Яа-яЁё-]+$/u',
+        message: 'Имя должно содержать только буквы и тире'
+    )]
+    #[ORM\Column(length: 255)]
+    private ?string $name = null;
 
     /**
      * @var list<string> The user roles
