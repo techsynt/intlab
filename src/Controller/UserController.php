@@ -2,6 +2,7 @@
 
 namespace App\Controller;
 
+use App\Entity\User;
 use App\Service\UserService;
 use Doctrine\ORM\EntityNotFoundException;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -37,12 +38,16 @@ class UserController extends AbstractController
             );
         }
 
-        return $this->buildResponse();
+        return $this->buildResponse(data: ['email' => $request->getPayload()->get('email'),
+            'message' => 'Пользователь успешно создан', ], statusCode: 201);
     }
 
     #[Route('/user/{id}', methods: ['DELETE'])]
     public function delete(UserService $userService, $id): JsonResponse
     {
+        dd($this->getUser());
+        $this->denyAccessUnlessGranted('ROLE_ADMIN', null, 'ПАЛ');
+
         try {
             $userService->delete($id);
 
@@ -65,7 +70,7 @@ class UserController extends AbstractController
             return $this->buildResponse('failed', 'Передан неправильный id', statusCode: 400);
         }
 
-        return $this->buildResponse(data: $user);
+        return $this->buildResponse(data: $this->normalize($user));
     }
 
     #[Route('/user/{id}', methods: ['PUT'])]
@@ -103,6 +108,14 @@ class UserController extends AbstractController
         return $this->json([
             'status' => $status,
             'data' => $data,
-        ]);
+        ], status: $statusCode);
+    }
+
+    private function normalize(User $user): array
+    {
+        return [
+            'id' => $user->getId(),
+            'email' => $user->getEmail(),
+        ];
     }
 }
