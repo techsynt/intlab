@@ -10,6 +10,8 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Security\Core\Exception\AccessDeniedException;
+use Symfony\Component\Security\Http\Attribute\CurrentUser;
 use Symfony\Component\Validator\Exception\ValidatorException;
 
 #[Route('/api')]
@@ -43,13 +45,16 @@ class UserController extends AbstractController
     }
 
     #[Route('/user/{id}', methods: ['DELETE'])]
-    public function delete(UserService $userService, $id): JsonResponse
+    public function delete($id): JsonResponse
     {
-        dd($this->getUser());
-        $this->denyAccessUnlessGranted('ROLE_ADMIN', null, 'ПАЛ');
+        try {
+            $this->denyAccessUnlessGranted('ROLE_ADMIN', null, 'Нет прав админа');
+        } catch (AccessDeniedException $e) {
+            return $this->json($e->getMessage());
+        }
 
         try {
-            $userService->delete($id);
+            $this->userService->delete($id);
 
             return $this->buildResponse(statusCode: 204);
         } catch (EntityNotFoundException $e) {
@@ -74,19 +79,23 @@ class UserController extends AbstractController
     }
 
     #[Route('/user/{id}', methods: ['PUT'])]
-    public function update(Request $request, $id): JsonResponse
+    public function update(Request $request, $id, #[CurrentUser] ?User $user): JsonResponse
     {
-        try {
-            $this->userService->update($request, $id);
-        } catch (\TypeError $e) {
-            return $this->buildResponse('failed', 'Передан неправильный id', statusCode: 400);
-        } catch (ValidatorException $e) {
-            return $this->buildResponse('failed', json_decode($e->getMessage(), true), statusCode: 422);
-        } catch (EntityNotFoundException $e) {
-            return $this->buildResponse('failed', 'Пользователь c id: '.$id.' не найден', statusCode: 404);
+        if ($user && ($user->getId() == $id || $this->isGranted('ROLE_ADMIN'))) {
+            try {
+                $this->userService->update($request, $id);
+            } catch (\TypeError $e) {
+                return $this->buildResponse('failed', 'Передан неправильный id', statusCode: 400);
+            } catch (ValidatorException $e) {
+                return $this->buildResponse('failed', json_decode($e->getMessage(), true), statusCode: 422);
+            } catch (EntityNotFoundException $e) {
+                return $this->buildResponse('failed', 'Пользователь c id: '.$id.' не найден', statusCode: 404);
+            }
+
+            return $this->buildResponse(data: ['message' => 'Пользователь успешно обновлен']);
         }
 
-        return $this->buildResponse();
+        throw new AccessDeniedException('Нет доступа к обновлению пользователя');
     }
 
     private function buildResponse(

@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Service;
 
 use App\Entity\User;
@@ -6,12 +7,12 @@ use App\Repository\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\EntityNotFoundException;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
+use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\Serializer\Normalizer\AbstractNormalizer;
 use Symfony\Component\Serializer\SerializerInterface;
 use Symfony\Component\Validator\Exception\ValidatorException;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
-use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
-use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 
 class UserService
 {
@@ -67,7 +68,13 @@ class UserService
             throw new EntityNotFoundException();
         }
         $user->setEmail($userData['email']);
-        $user->setPassword($userData['password']);
+
+        $hashedPassword = $this->passwordHasher->hashPassword(
+            $user,
+            $userData['password']
+        );
+        $user->setPassword($hashedPassword);
+
         $user->setName($userData['name']);
 
         $validationResult = $this->validate($user);
